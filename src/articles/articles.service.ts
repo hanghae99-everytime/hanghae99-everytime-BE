@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import {} from './dto/create-article.dto';
 import {} from './dto/update-article.dto';
-import { article } from './entities/article.entity';
+import { Article } from './entities/article.entity';
 
 @Injectable()
 export class ArticlesService {
-  private articles: article[] = [];
+  private articles: Article[] = [];
 
-  getAll(): article[] {
+  getAll(): Article[] {
     return this.articles;
   }
 }
