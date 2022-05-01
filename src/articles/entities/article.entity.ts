@@ -3,4 +3,5 @@ export class article {
   userId: number;
   title: string;
   content: string;
+  images: string[];
 }
