@@ -15,5 +15,5 @@ export class Article {
   content: string;
 
   @Column()
-  images: string[];
+  images: string;
 }
