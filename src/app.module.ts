@@ -4,10 +4,16 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ArticlesModule } from './articles/articles.module';
 import { UsersModule } from './users/users.module';
+import { ConfigModule } from '@nestjs/config';
+import { Connection } from 'typeorm';
 
 @Module({
   imports: [
-    //ref: https://docs.nestjs.com/techniques/database
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: process.env.NODE_ENV === 'dev' ? '.env.dev' : '.env.test',
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
+    }),
     TypeOrmModule.forRoot(),
     ArticlesModule,
     UsersModule,
@@ -15,4 +21,6 @@ import { UsersModule } from './users/users.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  constructor(private connection: Connection) {}
+}

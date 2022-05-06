@@ -8,4 +8,10 @@ export class ArticlesService {
   getAll(): Article[] {
     return this.articles;
   }
+
+  getOne(id: number): Article {
+    return this.articles.find(article => article.id === id);
+  }
+
+  create() {}
 }
