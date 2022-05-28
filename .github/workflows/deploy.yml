@@ -1,15 +1,17 @@
-# This workflow will do a clean install of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
-name: deploy
+name: build / push / deploy with docker
 
 on:
   pull_request:
     branches: [main]
     types: [closed]
 
+env:
+  DOCKER_IMAGE: ghcr.io/${{ github.actor }}/hhetbe
+  VERSION: 20.10.12
+  NAME: hhetbe
+
 jobs:
-  merge_job:
+  build:
     # this job will only run if the PR has been merged
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
@@ -21,39 +23,61 @@ jobs:
       - run: |
           echo PR #${{ github.event.number }} has been merged
       - name: Checkout source code.
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: create env file
-        working-directory: ./server
-        run: |
-          touch .env
-          cat << EOF >> .env
-          ${{ secrets.ENV }}
+      # 추후 설정
+      # - name: create env file
+      #   working-directory: ./server
+      #   run: |
+      #     touch .env
+      #     cat << EOF >> .env
+      #     ${{ secrets.ENV }}
 
-      - name: zip distributions
-        run: zip -r make-habit.zip ./server ./appspec.yml ./scripts
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    - name: Cache docker layers
+      uses: actions/cache@v2
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ env.VERSION }} 
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+    - name: Login to ghcr
+      uses: docker/login-action@v1
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHCR_TOKEN }}
+    - name: Build and push
+      id: docker_build
+      uses: docker/build-push-action@v2
+      with:
+        builder: ${{ steps.buildx.outputs.name }}
+        push: true
+        tags: ${{ env.DOCKER_IMAGE }}:latest
 
-      - name: AWS configure credentials
-        uses: aws-actions/configure-aws-credentials@v1
+
+deploy:
+    needs: build
+    name: Deploy
+    runs-on: self-hosted 
+    steps:
+      - name: Login to ghcr
+        uses: docker/login-action@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-2
-      - name: upload to S3
-        run: aws s3 cp --region ap-northeast-2 ./make-habit.zip s3://makehabit/public/
-      - name: deploy with AWS codeDeploy
-        run: aws deploy create-deployment
-          --application-name makehabit-codedeploy
-          --deployment-config-name CodeDeployDefault.OneAtATime
-          --deployment-group-name GROUP
-          --ignore-application-stop-failures
-          --s3-location bucket=makehabit,bundleType=zip,key=public/make-habit.zip
-          --description "Ignore ApplicationStop failures due to broken script"
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+      - name: Docker run
+        run: |
+          docker stop ${{ env.NAME }} && docker rm ${{ env.NAME }} && docker rmi ${{ env.DOCKER_IMAGE }}:latest
+          docker run -d -p 8081:5000 --name go_cicd --restart always ${{ env.DOCKER_IMAGE }}:latest
+ 
   close_job:
     # this job will only run if the PR has been closed without being merged
     if: github.event.pull_request.merged == false
