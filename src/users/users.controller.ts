@@ -12,7 +12,7 @@ export class UsersController {
     let isExist = await this.userService.findByFields({
       where: { email: data.email },
     });
-    if (isExist.email.length >= 1) {
+    if (isExist) {
       return Object.assign({
         result: false,
         msg: '이미 존재하는 이메일입니다.',
