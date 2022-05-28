@@ -6,6 +6,6 @@ module.exports = {
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE,
   entities: ['dist/**/*.entity{.ts,.js}'],
-  synchronize: true,
+  synchronize: false,
   // synchronize는 production모드에서 false로.. 아니면 데이터 날아가요
 };
